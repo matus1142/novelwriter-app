@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  novel-writer:
+    build: .
+    container_name: novel-writer-app
+    ports:
+      - "3006:80"
+    restart: unless-stopped
+    labels:
+      - "description=Novel Writer Web Application"

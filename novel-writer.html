@@ -1,0 +1,2325 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novel Writer - ปรับปรุงแล้ว</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f5f5;
+            --bg-tertiary: #e8e8e8;
+            --text-primary: #000000;
+            --text-secondary: #666666;
+            --text-dialogue: #0066cc;
+            --border-color: #ddd;
+            --sidebar-width: 250px;
+            --header-height: 60px;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #2d2d2d;
+            --bg-tertiary: #3d3d3d;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --text-dialogue: #4da6ff;
+            --border-color: #444;
+        }
+
+        body {
+            font-family: 'Sarabun', 'TH Sarabun New', 'Segoe UI', sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            transition: background 0.3s;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-primary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-header h3 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .btn-new {
+            padding: 6px 12px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-new:hover {
+            background: #0052a3;
+        }
+
+        .tree-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .tree-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin: 2px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            user-select: none;
+            position: relative;
+        }
+
+        .tree-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .tree-item.active {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+        }
+
+        .tree-item.drag-over {
+            background: rgba(0, 102, 204, 0.2);
+            border: 2px dashed #0066cc;
+        }
+
+        .tree-item .icon {
+            font-size: 14px;
+        }
+
+        .tree-item .expand-icon {
+            font-size: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .tree-item.collapsed .expand-icon {
+            transform: rotate(-90deg);
+        }
+
+        .tree-item.collapsed + .tree-children {
+            display: none;
+        }
+
+        .tree-children {
+            margin-left: 20px;
+        }
+
+        .tree-actions {
+            margin-left: auto;
+            display: none;
+            gap: 5px;
+        }
+
+        .tree-item:hover .tree-actions {
+            display: flex;
+        }
+
+        .tree-action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px 5px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .tree-action-btn:hover {
+            color: var(--text-primary);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            height: var(--header-height);
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .btn-menu {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-primary);
+            padding: 5px;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-group label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        select, .btn {
+            padding: 6px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .btn-primary {
+            background: #0066cc;
+            color: white;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background: #0052a3;
+        }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--text-primary);
+            padding: 5px;
+        }
+
+        /* Editor Area */
+        .editor-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .page-wrapper {
+            display: flex;
+            gap: 0;
+            position: relative;
+        }
+
+        .line-numbers {
+            background: var(--bg-tertiary);
+            padding: 2cm 10px;
+            text-align: right;
+            font-size: 12px;
+            line-height: 28.8px; /* 16px * 1.8 */
+            color: var(--text-secondary);
+            user-select: none;
+            display: none;
+        }
+
+        .line-numbers.show {
+            display: block;
+        }
+
+        .paper {
+            background: white;
+            color: black;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 2cm;
+            transition: width 0.3s;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .paper.a4 {
+            width: 21cm;
+            min-height: 29.7cm;
+        }
+
+        .paper.a5 {
+            width: 14.8cm;
+            min-height: 21cm;
+        }
+
+        [data-theme="dark"] .paper {
+            background: #2d2d2d;
+            color: #e0e0e0;
+        }
+
+        .paper-number {
+            position: absolute;
+            bottom: 1cm;
+            right: 2cm;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .editor {
+            min-height: 23.7cm; /* A4 height - 2cm padding * 2 */
+            font-size: 16px;
+            line-height: 1.8;
+            outline: none;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .dialogue {
+            color: #0066cc;
+        }
+
+        [data-theme="dark"] .dialogue {
+            color: #4da6ff;
+        }
+
+        .entity-link {
+            background: rgba(0, 102, 204, 0.1);
+            padding: 2px 4px;
+            border-radius: 3px;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .entity-link:hover {
+            background: rgba(0, 102, 204, 0.2);
+        }
+
+        /* Autocomplete */
+        .autocomplete-dropdown {
+            position: absolute;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+            z-index: 1000;
+            max-width: calc(100vw - 16px);
+            overflow-x: hidden;
+        }
+
+        .autocomplete-item {
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background: var(--bg-tertiary);
+        }
+
+        .autocomplete-item-type {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-left: 8px;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        /* Entity List */
+        .entity-list {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+
+        .entity-item {
+            padding: 12px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .entity-item-info {
+            flex: 1;
+        }
+
+        .entity-item-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .entity-item-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .entity-item-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .btn-small {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+
+        /* Version Comparison */
+        .comparison-view {
+            margin-top: 20px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .diff-line {
+            padding: 6px 10px;
+            margin: 2px 0;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .diff-added {
+            background: rgba(0, 200, 0, 0.15);
+            border-left: 3px solid #00c800;
+        }
+
+        .diff-removed {
+            background: rgba(200, 0, 0, 0.15);
+            border-left: 3px solid #c80000;
+            text-decoration: line-through;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            height: 30px;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-color);
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .save-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+        }
+
+        .save-indicator.saving {
+            background: #ffc107;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .sync-status {
+            cursor: pointer;
+        }
+
+        .sync-status:hover {
+            text-decoration: underline;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+
+            .container {
+                display: block; /* ❗ ไม่ใช้ flex บนมือถือ */
+            }
+            
+            .container,
+            .main-content,
+            .editor-area {
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+
+
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                width: var(--sidebar-width);
+                transform: translateX(-100%);
+                z-index: 100;
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                width: 100vw;
+                margin-left: 0;
+            }
+            .paper {
+                width: 100% !important;
+                max-width: 100%;
+                min-width: 0;
+                box-sizing: border-box;
+            }
+            .editor {
+                min-height: 60vh;
+            }
+            .sidebar-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.4);
+                z-index: 90;
+                display: none;
+            }
+
+            .sidebar-overlay.show {
+                display: block;
+            }
+        }
+
+        @media print {
+            .sidebar, .header, .status-bar, .line-numbers {
+                display: none;
+            }
+
+            .paper {
+                box-shadow: none;
+                margin: 0;
+                page-break-after: always;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h3>โปรเจกต์</h3>
+                <button class="btn-new" onclick="app.showNewItemModal()">+ ใหม่</button>
+            </div>
+            <div class="tree-container" id="treeContainer"></div>
+        </aside>
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="header">
+                <div class="header-left">
+                    <button class="btn-menu" onclick="app.toggleSidebar()">☰</button>
+                    <span class="header-title" id="documentTitle">ยังไม่ได้เลือกเอกสาร</span>
+                </div>
+                <div class="header-right">
+                    <div class="control-group">
+                        <label>กระดาษ:</label>
+                        <select id="paperSize" onchange="app.changePaperSize()">
+                            <option value="a4">A4</option>
+                            <option value="a5">A5</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>
+                            <input type="checkbox" id="showLineNumbers" onchange="app.toggleLineNumbers()">
+                            <span>บรรทัด</span>
+                        </label>
+                    </div>
+                    <div class="control-group">
+                        <button class="btn" onclick="app.showEntitiesModal()">ข้อมูล</button>
+                        <button class="btn" onclick="app.showVersionModal()">เวอร์ชั่น</button>
+                        <button class="btn" onclick="app.exportPDF()">PDF</button>
+                        <button class="btn" onclick="app.exportJSON()">JSON</button>
+                        <button class="btn-primary" onclick="app.manualSave()">บันทึก</button>
+                    </div>
+                    <div class="control-group theme-toggle">
+                        <button class="btn-icon" onclick="app.toggleTheme()" title="สลับธีม">🌓</button>
+                    </div>
+                </div>
+            </header>
+
+            <div class="editor-area" id="editorArea"></div>
+
+            <div class="status-bar">
+                <div class="status-item">
+                    <span class="save-indicator" id="saveIndicator"></span>
+                    <span id="saveStatus">พร้อม</span>
+                </div>
+                <div class="sync-status" onclick="app.showOneDriveModal()">
+                    <span id="syncStatus">☁️ OneDrive: ไม่ได้เชื่อมต่อ (คลิกเพื่อตั้งค่า)</span>
+                </div>
+                <div class="status-item">
+                    <span id="wordCount">0 คำ | 0 หน้า</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Autocomplete Dropdown -->
+    <div class="autocomplete-dropdown" id="autocomplete"></div>
+
+    <!-- New Item Modal -->
+    <div class="modal" id="newItemModal">
+        <div class="modal-content">
+            <div class="modal-header">สร้างใหม่</div>
+            <div class="form-group">
+                <label>ประเภท</label>
+                <select id="newItemType">
+                    <option value="folder">โฟลเดอร์</option>
+                    <option value="file">ไฟล์</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>ชื่อ</label>
+                <input type="text" id="newItemName" placeholder="กรอกชื่อ...">
+            </div>
+            <div class="form-group">
+                <label>สร้างใน</label>
+                <select id="newItemParent">
+                    <option value="">รูท (Root)</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn" onclick="app.closeModal('newItemModal')">ยกเลิก</button>
+                <button class="btn-primary" onclick="app.createNewItem()">สร้าง</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Entity Modal -->
+    <div class="modal" id="entityModal">
+        <div class="modal-content">
+            <div class="modal-header" id="entityModalTitle">เพิ่มข้อมูล</div>
+            <div class="form-group">
+                <label>ประเภท</label>
+                <select id="entityType">
+                    <option value="character">ตัวละคร</option>
+                    <option value="location">สถานที่</option>
+                    <option value="item">สิ่งของ</option>
+                    <option value="other">อื่นๆ</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>ชื่อ</label>
+                <input type="text" id="entityName" placeholder="กรอกชื่อ...">
+            </div>
+            <div class="form-group">
+                <label>คำอธิบาย</label>
+                <textarea id="entityDescription" placeholder="คำอธิบายเพิ่มเติม..."></textarea>
+            </div>
+            <input type="hidden" id="entityEditId">
+            <div class="modal-actions">
+                <button class="btn" onclick="app.closeModal('entityModal')">ยกเลิก</button>
+                <button class="btn-primary" onclick="app.saveEntity()">บันทึก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Entities List Modal -->
+    <div class="modal" id="entitiesModal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">จัดการข้อมูล</div>
+            <div class="entity-list" id="entityList"></div>
+            <div class="modal-actions">
+                <button class="btn-primary" onclick="app.showEntityModal()">+ เพิ่มใหม่</button>
+                <button class="btn" onclick="app.closeModal('entitiesModal')">ปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Version Modal -->
+    <div class="modal" id="versionModal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">เปรียบเทียบเวอร์ชั่น</div>
+            <div class="form-group">
+                <label>เลือกเวอร์ชั่นที่จะเปรียบเทียบ</label>
+                <select id="versionSelect"></select>
+            </div>
+            <div class="comparison-view" id="comparisonView" style="display: none;"></div>
+            <div class="modal-actions">
+                <button class="btn" onclick="app.closeModal('versionModal')">ปิด</button>
+                <button class="btn-primary" onclick="app.compareVersions()">เปรียบเทียบ</button>
+                <button class="btn-primary" onclick="app.restoreVersion()" style="background: #28a745;">♻️ กู้คืนเวอร์ชันนี้</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OneDrive Modal -->
+    <div class="modal" id="oneDriveModal">
+        <div class="modal-content">
+            <div class="modal-header">ตั้งค่า OneDrive Sync</div>
+            <div class="form-group">
+                <label>คำแนะนำ</label>
+                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
+                    1. สร้างโฟลเดอร์ "NovelWriter" ใน OneDrive ของคุณ<br>
+                    2. เมื่อบันทึกงาน ให้ Export เป็น JSON และเลือก "Save to OneDrive"<br>
+                    3. ระบบจะบันทึกไฟล์ลงในโฟลเดอร์ที่ระบุ<br>
+                    4. คุณสามารถ Import กลับเมื่อต้องการใช้งานในอุปกรณ์อื่น
+                </p>
+            </div>
+            <div class="form-group">
+                <button class="btn-primary" onclick="app.exportToOneDrive()">Export ข้อมูลทั้งหมด (JSON)</button>
+            </div>
+            <div class="form-group">
+                <label>Import จาก OneDrive</label>
+                <input type="file" id="importFile" accept=".json" onchange="app.importFromFile()">
+            </div>
+            <div class="modal-actions">
+                <button class="btn" onclick="app.closeModal('oneDriveModal')">ปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const app = {
+            db: null,
+            currentDocument: null,
+            autoSaveTimer: null,
+            entities: [],
+            treeData: [],
+            theme: 'light',
+            draggedItem: null,
+            currentPage: 1,
+            autocompleteIndex: 0,
+            autocompleteEntities: [],
+
+            async init() {
+                await this.initDB();
+                await this.loadTreeData();
+                await this.loadEntities();
+                this.loadTheme();
+                this.setupEventListeners();
+                this.renderTree();
+            },
+
+            async initDB() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open('NovelWriterDB', 2);
+                    
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => {
+                        this.db = request.result;
+                        resolve();
+                    };
+                    
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        
+                        if (!db.objectStoreNames.contains('documents')) {
+                            db.createObjectStore('documents', { keyPath: 'id' });
+                        }
+                        
+                        if (!db.objectStoreNames.contains('versions')) {
+                            const versionStore = db.createObjectStore('versions', { keyPath: 'id', autoIncrement: true });
+                            versionStore.createIndex('documentId', 'documentId', { unique: false });
+                        }
+                        
+                        if (!db.objectStoreNames.contains('entities')) {
+                            db.createObjectStore('entities', { keyPath: 'id', autoIncrement: true });
+                        }
+                        
+                        if (!db.objectStoreNames.contains('tree')) {
+                            db.createObjectStore('tree', { keyPath: 'id' });
+                        }
+                    };
+                });
+            },
+
+            async loadTreeData() {
+                const transaction = this.db.transaction(['tree'], 'readonly');
+                const store = transaction.objectStore('tree');
+                const request = store.get('root');
+                
+                return new Promise((resolve) => {
+                    request.onsuccess = () => {
+                        if (request.result) {
+                            this.treeData = request.result.data || [];
+                        } else {
+                            this.treeData = [{
+                                id: 'default',
+                                name: 'บทที่ 1',
+                                type: 'file',
+                                documentId: 'doc_1'
+                            }];
+                        }
+                        resolve();
+                    };
+                });
+            },
+
+            async saveTreeData() {
+                const transaction = this.db.transaction(['tree'], 'readwrite');
+                const store = transaction.objectStore('tree');
+                store.put({ id: 'root', data: this.treeData });
+            },
+
+            async loadEntities() {
+                const transaction = this.db.transaction(['entities'], 'readonly');
+                const store = transaction.objectStore('entities');
+                const request = store.getAll();
+                
+                return new Promise((resolve) => {
+                    request.onsuccess = () => {
+                        this.entities = request.result || [];
+                        resolve();
+                    };
+                });
+            },
+
+            renderTree() {
+                const container = document.getElementById('treeContainer');
+                container.innerHTML = '';
+                this.updateParentSelect();
+                
+                const renderItems = (items, parent) => {
+                    items.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = `tree-item ${item.type}`;
+                        div.setAttribute('data-id', item.id);
+                        div.draggable = true;
+                        
+                        let expandIcon = '';
+                        if (item.type === 'folder') {
+                            expandIcon = `<span class="expand-icon" onclick="app.toggleFolder('${item.id}', event)">▼</span>`;
+                        }
+                        
+                        div.innerHTML = `
+                            ${expandIcon}
+                            <span class="icon">${item.type === 'folder' ? '📁' : '📄'}</span>
+                            <span>${item.name}</span>
+                            <div class="tree-actions">
+                                <button class="tree-action-btn" onclick="app.renameItem('${item.id}', event)" title="เปลี่ยนชื่อ">✏️</button>
+                                <button class="tree-action-btn" onclick="app.deleteItem('${item.id}', event)" title="ลบ">🗑️</button>
+                            </div>
+                        `;
+                        
+                        if (item.type === 'file') {
+                            div.onclick = (e) => {
+                                if (!e.target.classList.contains('tree-action-btn')) {
+                                    this.loadDocument(item.documentId, item.name);
+                                }
+                            };
+                        }
+                        
+                        // Drag and drop
+                        div.addEventListener('dragstart', (e) => {
+                            this.draggedItem = item;
+                            e.dataTransfer.effectAllowed = 'move';
+                        });
+                        
+                        div.addEventListener('dragover', (e) => {
+                            if (item.type === 'folder') {
+                                e.preventDefault();
+                                e.dataTransfer.dropEffect = 'move';
+                                div.classList.add('drag-over');
+                            }
+                        });
+                        
+                        div.addEventListener('dragleave', () => {
+                            div.classList.remove('drag-over');
+                        });
+                        
+                        div.addEventListener('drop', (e) => {
+                            e.preventDefault();
+                            div.classList.remove('drag-over');
+                            if (item.type === 'folder' && this.draggedItem) {
+                                this.moveItemToFolder(this.draggedItem, item);
+                            }
+                        });
+                        
+                        parent.appendChild(div);
+                        
+                        if (item.children && item.children.length > 0) {
+                            const childContainer = document.createElement('div');
+                            childContainer.className = 'tree-children';
+                            parent.appendChild(childContainer);
+                            renderItems(item.children, childContainer);
+                        }
+                    });
+                };
+                
+                renderItems(this.treeData, container);
+            },
+
+            toggleFolder(id, event) {
+                event.stopPropagation();
+                const item = document.querySelector(`[data-id="${id}"]`);
+                item.classList.toggle('collapsed');
+            },
+
+            async moveItemToFolder(draggedItem, targetFolder) {
+
+                const isDescendant = (parent, childId) => {
+                    if (!parent.children) return false;
+                    for (let c of parent.children) {
+                        if (c.id === childId) return true;
+                        if (isDescendant(c, childId)) return true;
+                    }
+                    return false;
+                };
+
+                // ก่อน move
+                if (draggedItem.type === 'folder' &&
+                    isDescendant(draggedItem, targetFolder.id)) {
+                    alert('ไม่สามารถย้ายโฟลเดอร์ไปไว้ในลูกของตัวเองได้');
+                    return;
+                }
+
+                // ❌ ห้ามลากเข้าโฟลเดอร์ตัวเอง
+                if (draggedItem.id === targetFolder.id) return;
+
+                // 1. ลบ item ออกจากตำแหน่งเดิม
+                const removeFrom = (items) => {
+                    for (let i = 0; i < items.length; i++) {
+                        if (items[i].id === draggedItem.id) {
+                            items.splice(i, 1);
+                            return true;
+                        }
+                        if (items[i].children && removeFrom(items[i].children)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                };
+
+                // 2. เพิ่มเข้า folder เป้าหมาย
+                const addToFolder = (items) => {
+                    for (let node of items) {
+                        if (node.id === targetFolder.id) {
+                            if (!node.children) node.children = [];
+                            node.children.push(draggedItem); // ✅ ถูกต้อง
+                            return true;
+                        }
+                        if (node.children && addToFolder(node.children)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                };
+
+                removeFrom(this.treeData);
+                addToFolder(this.treeData);
+
+                await this.saveTreeData();
+                this.renderTree();
+            },
+
+            updateParentSelect() {
+                const select = document.getElementById('newItemParent');
+                select.innerHTML = '<option value="">รูท (Root)</option>';
+                
+                const addFolders = (items, prefix = '') => {
+                    items.forEach(item => {
+                        if (item.type === 'folder') {
+                            const option = document.createElement('option');
+                            option.value = item.id;
+                            option.textContent = prefix + item.name;
+                            select.appendChild(option);
+                            
+                            if (item.children) {
+                                addFolders(item.children, prefix + '  ');
+                            }
+                        }
+                    });
+                };
+                
+                addFolders(this.treeData);
+            },
+
+            async renameItem(id, event) {
+                event.stopPropagation();
+                const newName = prompt('ชื่อใหม่:');
+                if (!newName) return;
+                
+                const findAndRename = (items) => {
+                    for (let item of items) {
+                        if (item.id === id) {
+                            item.name = newName;
+                            return true;
+                        }
+                        if (item.children && findAndRename(item.children)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                };
+                
+                findAndRename(this.treeData);
+                await this.saveTreeData();
+                this.renderTree();
+            },
+
+            async deleteItem(id, event) {
+                event.stopPropagation();
+                if (!confirm('ต้องการลบรายการนี้หรือไม่?')) return;
+                
+                const removeItem = (items) => {
+                    for (let i = 0; i < items.length; i++) {
+                        if (items[i].id === id) {
+                            items.splice(i, 1);
+                            return true;
+                        }
+                        if (items[i].children && removeItem(items[i].children)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                };
+                
+                removeItem(this.treeData);
+                await this.saveTreeData();
+                this.renderTree();
+            },
+
+            migrateRawToPages(text) {
+                if (!text) return [''];
+
+                const escaped = text
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+
+                const html = escaped
+                    .split('\n')
+                    .map(line => line === '' ? '<div><br></div>' : `<div>${line}</div>`)
+                    .join('');
+
+                return [html];
+            },
+
+            async loadDocument(docId, title) {
+                document.getElementById('documentTitle').textContent = title;
+                
+                const transaction = this.db.transaction(['documents'], 'readonly');
+                const store = transaction.objectStore('documents');
+                const request = store.get(docId);
+                
+                request.onsuccess = () => {
+                    const doc = request.result || {
+                        id: docId,
+                        rawContent: '',
+                        pages: null
+                    };
+
+                    this.currentDocument = doc;
+
+                    // 🔁 migrate ครั้งแรก
+                    if (!doc.pages || !Array.isArray(doc.pages)) {
+                        doc.pages = this.migrateRawToPages(doc.rawContent || '');
+                    }
+                    this.renderPages();
+                    this.updateWordCount();
+                };
+            },
+
+            generateLineNumbers(html) {
+                const temp = document.createElement('div');
+                temp.innerHTML = html;
+
+                const lines = temp.querySelectorAll('div');
+                const count = Math.max(lines.length, 1);
+
+                return Array.from({ length: count }, (_, i) => i + 1).join('<br>');
+            },
+
+            // highlightDialogueInEditor(editor) {
+            //     const selection = window.getSelection();
+            //     if (!selection.rangeCount) return;
+
+            //     const range = selection.getRangeAt(0);
+            //     const textNode = this.getActiveTextNode(range);
+            //     if (!textNode) return;
+
+            //     const text = textNode.textContent;
+
+            //     // เช็คก่อนว่ามี " หรือ ' ไหม
+            //     if (!/[\"']/.test(text)) return;
+
+            //     const fragment = document.createDocumentFragment();
+            //     const parts = text.split(/("[^"]*"|'[^']*')/g);
+
+            //     parts.forEach(part => {
+            //         if (
+            //             (part.startsWith('"') && part.endsWith('"')) ||
+            //             (part.startsWith("'") && part.endsWith("'"))
+            //         ) {
+            //             const span = document.createElement('span');
+            //             span.className = 'dialogue';
+            //             span.textContent = part;
+            //             fragment.appendChild(span);
+            //         } else {
+            //             fragment.appendChild(document.createTextNode(part));
+            //         }
+            //     });
+
+            //     const parent = textNode.parentNode;
+            //     const offset = range.startOffset;
+
+            //     parent.replaceChild(fragment, textNode);
+
+            //     // 🔥 restore cursor อย่างแม่น
+            //     const walker = document.createTreeWalker(parent, NodeFilter.SHOW_TEXT);
+            //     let current = walker.nextNode();
+            //     let count = 0;
+
+            //     while (current) {
+            //         if (count + current.length >= offset) {
+            //             const newRange = document.createRange();
+            //             newRange.setStart(current, offset - count);
+            //             newRange.collapse(true);
+
+            //             selection.removeAllRanges();
+            //             selection.addRange(newRange);
+            //             break;
+            //         }
+            //         count += current.length;
+            //         current = walker.nextNode();
+            //     }
+            // },
+
+            parseDialogueToHTML(html) {
+                const temp = document.createElement('div');
+                temp.innerHTML = html;
+
+                const walk = document.createTreeWalker(
+                    temp,
+                    NodeFilter.SHOW_TEXT,
+                    null
+                );
+
+                const textNodes = [];
+                while (walk.nextNode()) {
+                    textNodes.push(walk.currentNode);
+                }
+
+                textNodes.forEach(node => {
+                    const text = node.textContent;
+                    if (!text || !/["']/.test(text)) return;
+
+                    const parts = text.split(/("[^"]*"|'[^']*')/g);
+                    if (parts.length === 1) return;
+
+                    const frag = document.createDocumentFragment();
+                    parts.forEach(p => {
+                        if (
+                            (p.startsWith('"') && p.endsWith('"')) ||
+                            (p.startsWith("'") && p.endsWith("'"))
+                        ) {
+                            const span = document.createElement('span');
+                            span.className = 'dialogue';
+                            span.textContent = p;
+                            frag.appendChild(span);
+                        } else {
+                            frag.appendChild(document.createTextNode(p));
+                        }
+                    });
+
+                    node.parentNode.replaceChild(frag, node);
+                });
+
+                return temp.innerHTML;
+            },
+
+            renderPages() {
+                const editorArea = document.getElementById('editorArea');
+                editorArea.innerHTML = '';
+
+                const paperSize = document.getElementById('paperSize').value;
+                const showLineNumbers = document.getElementById('showLineNumbers').checked;
+
+                const pages = this.currentDocument.pages?.length
+                    ? this.currentDocument.pages
+                    : [''];
+
+                pages.forEach((pageHTML, index) => {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'page-wrapper';
+
+                    if (showLineNumbers) {
+                        const ln = document.createElement('div');
+                        ln.className = 'line-numbers show';
+                        ln.innerHTML = this.generateLineNumbers(pageHTML);
+                        wrapper.appendChild(ln);
+                    }
+
+                    const paper = document.createElement('div');
+                    paper.className = `paper ${paperSize}`;
+
+                    const editor = document.createElement('div');
+                    editor.className = 'editor';
+                    editor.contentEditable = 'true';
+                    editor.dataset.page = index;
+
+                    // 🔥 สำคัญ
+                    editor.innerHTML = this.parseDialogueToHTML(pageHTML);
+
+                    const pageNum = document.createElement('div');
+                    pageNum.className = 'paper-number';
+                    pageNum.textContent = index + 1;
+
+                    paper.appendChild(editor);
+                    paper.appendChild(pageNum);
+                    wrapper.appendChild(paper);
+                    editorArea.appendChild(wrapper);
+                });
+
+                this.currentPage = pages.length;
+            },
+
+            renderContentWithHighlighting(element, content) {
+                element.innerHTML = '';
+                
+                // Parse content: handle @links and dialogues
+                const parts = content.split(/("[^"]*"|'[^']*')/g);
+                
+                parts.forEach(part => {
+                    if (part.startsWith('"') && part.endsWith('"')) {
+                        // Dialogue
+                        const span = document.createElement('span');
+                        span.className = 'dialogue';
+                        span.textContent = part;
+                        element.appendChild(span);
+                    } else {
+                        // Check for @links
+                        const linkParts = part.split(/(@\w+)/g);
+                        linkParts.forEach(linkPart => {
+                            if (linkPart.startsWith('@')) {
+                                const entityName = linkPart.substring(1);
+                                const entity = this.entities.find(e => 
+                                    e.name.toLowerCase() === entityName.toLowerCase()
+                                );
+                                
+                                if (entity) {
+                                    const span = document.createElement('span');
+                                    span.className = 'entity-link';
+                                    span.textContent = entity.name;
+                                    span.title = entity.description || '';
+                                    span.setAttribute('data-entity-id', entity.id);
+                                    element.appendChild(span);
+                                } else {
+                                    element.appendChild(document.createTextNode(linkPart));
+                                }
+                            } else {
+                                element.appendChild(document.createTextNode(linkPart));
+                            }
+                        });
+                    }
+                });
+            },
+
+
+            handleAutoIndent(e) {
+                const selection = window.getSelection();
+                if (!selection.rangeCount) return;
+
+                const range = selection.getRangeAt(0);
+                const textNode = this.getActiveTextNode(range);
+                if (!textNode) return;
+
+                const offset = range.startOffset;
+                if (offset < 2) return;
+
+                // ตรวจสอบอักขระก่อน cursor
+                const before = textNode.textContent.slice(offset - 2, offset);
+                if (before !== '>>') return;
+
+                // 🔥 ลบ >>
+                document.execCommand('delete');
+                document.execCommand('delete');
+
+                // 🔵 ใส่ indent นิยาย
+                document.execCommand('insertText', false, '\u3000\u3000');
+            },
+
+            setupEventListeners() {
+                document.addEventListener('input', (e) => {
+                    const editor = document.querySelector('.editor');
+                    editor.addEventListener(
+                        'input',
+                        this.handleAutoIndent.bind(this)
+                    );
+                    
+                    if (e.target.classList.contains('editor')) {
+                        this.scheduleAutoSave();
+                        this.updateWordCount();
+                        this.handleAutoComplete();
+                    }
+                });
+                
+                document.addEventListener('keydown', (e) => {
+                    if (e.target.classList.contains('editor')) {
+                        if (e.key === 'Enter' && this.isAutocompleteOpen()) {
+                            e.preventDefault();
+                            this.selectAutocomplete();
+                        }
+                    }
+                });
+
+                // Ctrl+E for entity modal
+                document.addEventListener('keydown', (e) => {
+                    if (e.ctrlKey && e.key === 'e') {
+                        e.preventDefault();
+                        this.showEntityModal();
+                    }
+                });
+
+                // Click outside to close modals
+                document.querySelectorAll('.modal').forEach(modal => {
+                    modal.addEventListener('click', (e) => {
+                        if (e.target === modal) {
+                            modal.classList.remove('active');
+                        }
+                    });
+                });
+            },
+
+            getAllPagesHTML() {
+                const editors = document.querySelectorAll('.editor');
+                return Array.from(editors).map(e => e.innerHTML);
+            },
+
+            scheduleAutoSave() {
+                clearTimeout(this.autoSaveTimer);
+                
+                const indicator = document.getElementById('saveIndicator');
+                const status = document.getElementById('saveStatus');
+                indicator.classList.add('saving');
+                status.textContent = 'กำลังบันทึก...';
+                
+                this.autoSaveTimer = setTimeout(() => {
+                    this.autoSave();
+                }, 2000);
+            },
+
+            async autoSave() {
+                if (!this.currentDocument) return;
+                
+                this.currentDocument.pages = this.getAllPagesHTML();
+                this.currentDocument.updatedAt = new Date().toISOString();
+                
+                const transaction = this.db.transaction(['documents'], 'readwrite');
+                const store = transaction.objectStore('documents');
+                await store.put(this.currentDocument);
+                
+                const indicator = document.getElementById('saveIndicator');
+                const status = document.getElementById('saveStatus');
+                indicator.classList.remove('saving');
+                status.textContent = 'บันทึกแล้ว';
+            },
+
+            async manualSave() {
+                if (!this.currentDocument) {
+                    alert('กรุณาเลือกเอกสารก่อน');
+                    return;
+                }
+                
+                await this.autoSave();
+                
+                // Create version
+                const transaction = this.db.transaction(['versions'], 'readwrite');
+                const store = transaction.objectStore('versions');
+                
+                await store.add({
+                    documentId: this.currentDocument.id,
+                    pages: this.getAllPagesHTML(),
+                    timestamp: new Date().toISOString()
+                });
+                
+                alert('บันทึกเวอร์ชั่นสำเร็จ!');
+            },
+
+            updateWordCount() {
+                const editors = document.querySelectorAll('.editor');
+
+                let text = '';
+
+                editors.forEach(editor => {
+                    // clone เพื่อไม่แตะ DOM จริง
+                    const clone = editor.cloneNode(true);
+
+                    // ลบ entity span แต่เก็บข้อความ
+                    clone.querySelectorAll('.entity-link').forEach(span => {
+                        span.replaceWith(span.textContent);
+                    });
+
+                    text += ' ' + clone.innerText;
+                });
+
+                text = text
+                    .replace(/\s+/g, ' ')
+                    .trim();
+
+                const words = text ? text.split(' ').length : 0;
+
+                document.getElementById('wordCount').textContent =
+                    `${words} คำ | ${this.currentPage} หน้า`;
+            },
+
+            getActiveTextNode(range) {
+                let node = range.startContainer;
+
+                if (node.nodeType === Node.TEXT_NODE) {
+                    return node;
+                }
+
+                // ถ้าเป็น element ให้หาลูกที่เป็น text
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    const offset = range.startOffset;
+                    const child = node.childNodes[offset - 1] || node.childNodes[offset];
+
+                    if (child && child.nodeType === Node.TEXT_NODE) {
+                        return child;
+                    }
+
+                    // fallback: หา text node แรก
+                    return node.querySelector && node.querySelector('*')
+                        ? node.querySelector('*').firstChild
+                        : null;
+                }
+
+                return null;
+            },
+
+            handleAutoComplete() {
+                const activeEditor = document.activeElement;
+                if (!activeEditor || !activeEditor.classList.contains('editor')) {
+                    this.hideAutocomplete();
+                    return;
+                }
+
+                const selection = window.getSelection();
+                if (!selection.rangeCount) {
+                    this.hideAutocomplete();
+                    return;
+                }
+
+                const range = selection.getRangeAt(0);
+                const textNode = this.getActiveTextNode(range);
+
+                if (!textNode) {
+                    this.hideAutocomplete();
+                    return;
+                }
+
+                const textBefore = textNode.textContent.substring(0, range.startOffset);
+                const match = textBefore.match(/@(\w*)$/);
+
+                if (!match) {
+                    this.hideAutocomplete();
+                    return;
+                }
+
+                const query = match[1].toLowerCase();
+                const filtered = this.entities.filter(e =>
+                    e.name.toLowerCase().includes(query)
+                );
+
+                if (filtered.length) {
+                    this.showAutocomplete(filtered, range);
+                } else {
+                    this.hideAutocomplete();
+                }
+            },
+
+            updateAutocompleteSelection(index) {
+                const items = document.querySelectorAll('.autocomplete-item');
+                items.forEach(item => item.classList.remove('selected'));
+
+                if (items[index]) {
+                    items[index].classList.add('selected');
+                    this.autocompleteIndex = index;
+                }
+            },
+
+            showAutocomplete(entities, range) {
+                const dropdown = document.getElementById('autocomplete');
+                dropdown.innerHTML = '';
+                dropdown.style.display = 'block';
+
+                this.autocompleteEntities = entities;
+                this.autocompleteIndex = 0;
+
+                entities.forEach((entity, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'autocomplete-item';
+                    if (index === 0) div.classList.add('selected');
+
+                    div.innerHTML = `
+                        ${entity.name}
+                        <span class="autocomplete-item-type">
+                            ${this.getEntityTypeLabel(entity.type)}
+                        </span>
+                    `;
+
+                    // 🖱 mouse support
+                    div.onmousedown = (e) => {
+                        e.preventDefault();
+                        this.insertEntity(entity);
+                    };
+
+                    div.onmouseenter = () => {
+                        this.updateAutocompleteSelection(index);
+                    };
+
+                    dropdown.appendChild(div);
+                });
+
+                const rect = range.getBoundingClientRect();
+                dropdown.style.left = rect.left + 'px';
+                dropdown.style.top = rect.bottom + 5 + 'px';
+            },
+
+
+            hideAutocomplete() {
+                document.getElementById('autocomplete').style.display = 'none';
+            },
+
+            isAutocompleteOpen() {
+                return document.getElementById('autocomplete').style.display === 'block';
+            },
+
+            selectAutocomplete() {
+                const selected = document.querySelector('.autocomplete-item.selected');
+                if (selected) selected.click();
+            },
+
+            insertEntity(entity) {
+                const selection = window.getSelection();
+                if (!selection.rangeCount) return;
+
+                const range = selection.getRangeAt(0);
+                const textNode = this.getActiveTextNode(range);
+                if (!textNode) return;
+
+                const textBefore = textNode.textContent.substring(0, range.startOffset);
+                const match = textBefore.match(/@(\w*)$/);
+                if (!match) return;
+
+                // คำนวณตำแหน่งเริ่มของ @word
+                const startOffset = range.startOffset - match[0].length;
+
+                // สร้าง range ใหม่ ครอบเฉพาะ @word
+                const replaceRange = document.createRange();
+                replaceRange.setStart(textNode, startOffset);
+                replaceRange.setEnd(textNode, range.startOffset);
+
+                // ลบ @word ออก
+                replaceRange.deleteContents();
+
+                // สร้าง span entity
+                const span = document.createElement('span');
+                span.className = 'entity-link';
+                span.textContent = entity.name;
+                span.title = entity.description || '';
+                span.setAttribute('data-entity-id', entity.id);
+                span.contentEditable = 'false';
+
+                // insert span
+                replaceRange.insertNode(span);
+
+                // เพิ่ม space ต่อท้าย เพื่อพิมพ์ต่อได้
+                const space = document.createTextNode(' ');
+                span.after(space);
+
+                // ย้าย cursor ไปหลัง space
+                const newRange = document.createRange();
+                newRange.setStart(space, 1);
+                newRange.collapse(true);
+
+                selection.removeAllRanges();
+                selection.addRange(newRange);
+
+                this.hideAutocomplete();
+                this.scheduleAutoSave();
+            },
+            changePaperSize() {
+                this.renderPages();
+            },
+
+            toggleLineNumbers() {
+                this.renderPages();
+            },
+
+            toggleTheme() {
+                this.theme = this.theme === 'light' ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', this.theme);
+                localStorage.setItem('theme', this.theme);
+            },
+
+            loadTheme() {
+                const savedTheme = localStorage.getItem('theme') || 'light';
+                this.theme = savedTheme;
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            },
+
+            toggleSidebar() {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('sidebarOverlay');
+
+                const isOpen = sidebar.classList.toggle('show');
+                overlay.classList.toggle('show', isOpen);
+            },
+
+            showNewItemModal() {
+                document.getElementById('newItemModal').classList.add('active');
+                document.getElementById('newItemName').value = '';
+                this.updateParentSelect();
+            },
+
+            async createNewItem() {
+                const type = document.getElementById('newItemType').value;
+                const name = document.getElementById('newItemName').value.trim();
+                const parentId = document.getElementById('newItemParent').value;
+                
+                if (!name) {
+                    alert('กรุณากรอกชื่อ');
+                    return;
+                }
+                
+                const newItem = {
+                    id: 'item_' + Date.now(),
+                    name: name,
+                    type: type
+                };
+                
+                if (type === 'file') {
+                    newItem.documentId = 'doc_' + Date.now();
+                } else {
+                    newItem.children = [];
+                }
+                
+                // Add to parent or root
+                if (parentId) {
+                    const addToFolder = (items) => {
+                        for (let item of items) {
+                            if (item.id === parentId) {
+                                if (!item.children) item.children = [];
+                                item.children.push(newItem);
+                                return true;
+                            }
+                            if (item.children && addToFolder(item.children)) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    };
+                    addToFolder(this.treeData);
+                } else {
+                    this.treeData.push(newItem);
+                }
+                
+                await this.saveTreeData();
+                this.renderTree();
+                this.closeModal('newItemModal');
+            },
+
+            showEntityModal(entityId = null) {
+                const modal = document.getElementById('entityModal');
+                const titleEl = document.getElementById('entityModalTitle');
+                const editIdEl = document.getElementById('entityEditId');
+                
+                if (entityId) {
+                    // Edit mode
+                    const entity = this.entities.find(e => e.id === entityId);
+                    if (entity) {
+                        titleEl.textContent = 'แก้ไขข้อมูล';
+                        document.getElementById('entityType').value = entity.type;
+                        document.getElementById('entityName').value = entity.name;
+                        document.getElementById('entityDescription').value = entity.description || '';
+                        editIdEl.value = entity.id;
+                    }
+                } else {
+                    // Add mode
+                    titleEl.textContent = 'เพิ่มข้อมูล';
+                    document.getElementById('entityType').value = 'character';
+                    document.getElementById('entityName').value = '';
+                    document.getElementById('entityDescription').value = '';
+                    editIdEl.value = '';
+                }
+                
+                modal.classList.add('active');
+                // Close entities modal if open
+                this.closeModal('entitiesModal');
+            },
+
+            async saveEntity() {
+                const type = document.getElementById('entityType').value;
+                const name = document.getElementById('entityName').value.trim();
+                const description = document.getElementById('entityDescription').value.trim();
+                const editId = document.getElementById('entityEditId').value;
+                
+                if (!name) {
+                    alert('กรุณากรอกชื่อ');
+                    return;
+                }
+                
+                const transaction = this.db.transaction(['entities'], 'readwrite');
+                const store = transaction.objectStore('entities');
+                
+                if (editId) {
+                    // Update existing
+                    const entity = this.entities.find(e => e.id === parseInt(editId));
+                    if (entity) {
+                        entity.type = type;
+                        entity.name = name;
+                        entity.description = description;
+                        await store.put(entity);
+                    }
+                } else {
+                    // Add new
+                    await store.add({
+                        type: type,
+                        name: name,
+                        description: description
+                    });
+                }
+                
+                await this.loadEntities();
+                this.closeModal('entityModal');
+                
+                // Refresh entities modal if it's open
+                if (document.getElementById('entitiesModal').classList.contains('active')) {
+                    this.showEntitiesModal();
+                }
+                
+                // Re-render current document to update entity links
+                if (this.currentDocument) {
+                    this.renderPages();
+                }
+            },
+
+            showEntitiesModal() {
+                const modal = document.getElementById('entitiesModal');
+                const list = document.getElementById('entityList');
+                
+                list.innerHTML = '';
+                
+                if (this.entities.length === 0) {
+                    list.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">ยังไม่มีข้อมูล</p>';
+                } else {
+                    this.entities.forEach(entity => {
+                        const item = document.createElement('div');
+                        item.className = 'entity-item';
+                        item.innerHTML = `
+                            <div class="entity-item-info">
+                                <div class="entity-item-name">${entity.name} 
+                                    <span style="font-size: 12px; color: var(--text-secondary);">(${this.getEntityTypeLabel(entity.type)})</span>
+                                </div>
+                                <div class="entity-item-desc">${entity.description || 'ไม่มีคำอธิบาย'}</div>
+                            </div>
+                            <div class="entity-item-actions">
+                                <button class="btn btn-small" onclick="app.editEntity(${entity.id})">แก้ไข</button>
+                                <button class="btn btn-small" onclick="app.deleteEntity(${entity.id})">ลบ</button>
+                            </div>
+                        `;
+                        list.appendChild(item);
+                    });
+                }
+                
+                modal.classList.add('active');
+            },
+
+            editEntity(id) {
+                this.showEntityModal(id);
+            },
+
+            async deleteEntity(id) {
+                if (!confirm('ต้องการลบข้อมูลนี้หรือไม่?')) return;
+                
+                const transaction = this.db.transaction(['entities'], 'readwrite');
+                const store = transaction.objectStore('entities');
+                await store.delete(id);
+                
+                await this.loadEntities();
+                this.showEntitiesModal();
+                
+                // Re-render current document
+                if (this.currentDocument) {
+                    this.renderPages();
+                }
+            },
+
+            async showVersionModal() {
+                if (!this.currentDocument) {
+                    alert('กรุณาเลือกเอกสารก่อน');
+                    return;
+                }
+
+                const select = document.getElementById('versionSelect');
+                select.innerHTML = '';
+
+                const tx = this.db.transaction(['versions'], 'readonly');
+                const store = tx.objectStore('versions');
+                const index = store.index('documentId');
+
+                const request = index.getAll(this.currentDocument.id);
+
+                request.onsuccess = () => {
+                    const versions = request.result;
+
+                    if (!versions.length) {
+                        select.innerHTML = '<option>ยังไม่มีเวอร์ชัน</option>';
+                        return;
+                    }
+
+                    versions
+                        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                        .forEach(v => {
+                            const opt = document.createElement('option');
+                            opt.value = v.id;
+                            opt.textContent = new Date(v.timestamp).toLocaleString();
+                            select.appendChild(opt);
+                        });
+                };
+
+                document.getElementById('comparisonView').style.display = 'none';
+                document.getElementById('versionModal').classList.add('active');
+            },
+
+            async compareVersions() {
+                const versionId = parseInt(document.getElementById('versionSelect').value);
+                if (!versionId) {
+                    alert('กรุณาเลือกเวอร์ชั่น');
+                    return;
+                }
+                
+                const transaction = this.db.transaction(['versions'], 'readonly');
+                const store = transaction.objectStore('versions');
+                const request = store.get(versionId);
+                
+                request.onsuccess = () => {
+                    const version = request.result;
+                    const oldText = version.pages.join('\n');
+                    const newText = this.currentDocument.pages.join('\n');
+                    
+                    const diff = this.computeDiff(oldText, newText);
+                    const comparisonView = document.getElementById('comparisonView');
+                    comparisonView.innerHTML = '';
+                    
+                    diff.forEach(line => {
+                        const div = document.createElement('div');
+                        div.className = 'diff-line';
+                        
+                        if (line.type === 'added') {
+                            div.classList.add('diff-added');
+                            div.textContent = '+ ' + line.text;
+                        } else if (line.type === 'removed') {
+                            div.classList.add('diff-removed');
+                            div.textContent = '- ' + line.text;
+                        } else {
+                            // Skip unchanged lines or show minimal context
+                            return;
+                        }
+                        
+                        comparisonView.appendChild(div);
+                    });
+                    
+                    if (comparisonView.children.length === 0) {
+                        comparisonView.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">ไม่มีการเปลี่ยนแปลง</p>';
+                    }
+                    
+                    comparisonView.style.display = 'block';
+                };
+            },
+
+            computeDiff(oldText, newText) {
+                const oldLines = oldText.split('\n');
+                const newLines = newText.split('\n');
+                const diff = [];
+                
+                // Simple line-based diff
+                let i = 0, j = 0;
+                
+                while (i < oldLines.length || j < newLines.length) {
+                    if (i < oldLines.length && j < newLines.length && oldLines[i] === newLines[j]) {
+                        i++;
+                        j++;
+                    } else if (j < newLines.length && (i >= oldLines.length || !oldLines.includes(newLines[j]))) {
+                        diff.push({ type: 'added', text: newLines[j] });
+                        j++;
+                    } else if (i < oldLines.length) {
+                        diff.push({ type: 'removed', text: oldLines[i] });
+                        i++;
+                    }
+                }
+                
+                return diff;
+            },
+
+            async restoreVersion() {
+                const versionId = parseInt(document.getElementById('versionSelect').value);
+                if (!versionId) {
+                    alert('กรุณาเลือกเวอร์ชั่นที่ต้องการกู้คืน');
+                    return;
+                }
+                
+                if (!confirm('คุณแน่ใจหรือไม่ที่จะกู้คืนเวอร์ชันนี้?\n\nเนื้อหาปัจจุบันจะถูกแทนที่ด้วยเวอร์ชันที่เลือก')) {
+                    return;
+                }
+                
+                const transaction = this.db.transaction(['versions'], 'readonly');
+                const store = transaction.objectStore('versions');
+                const request = store.get(versionId);
+                
+                request.onsuccess = async () => {
+                    const version = request.result;
+                    if (!version) {
+                        alert('ไม่พบเวอร์ชันที่เลือก');
+                        return;
+                    }
+                    
+                    // กู้คืนข้อมูลจาก version
+                    this.currentDocument.pages = [...version.pages];
+                    this.currentDocument.updatedAt = new Date().toISOString();
+                    
+                    // บันทึกเอกสารที่กู้คืน
+                    const saveTx = this.db.transaction(['documents'], 'readwrite');
+                    const saveStore = saveTx.objectStore('documents');
+                    await saveStore.put(this.currentDocument);
+                    
+                    // รีเฟรชหน้าจอ
+                    this.renderPages();
+                    this.updateWordCount();
+                    
+                    // ปิด modal
+                    this.closeModal('versionModal');
+                    
+                    alert('✅ กู้คืนเวอร์ชันสำเร็จ!');
+                };
+            },
+
+            async exportPDF() {
+                if (!this.currentDocument) {
+                    alert('กรุณาเลือกเอกสารก่อน');
+                    return;
+                }
+
+                alert('กำลังสร้าง PDF...\n\nหมายเหตุ: การสร้าง PDF อาจใช้เวลาสักครู่ เนื่องจากต้องแปลงแต่ละหน้า');
+
+                try {
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF({
+                        orientation: 'portrait',
+                        unit: 'mm',
+                        format: document.getElementById('paperSize').value === 'a4' ? 'a4' : 'a5'
+                    });
+
+                    const papers = document.querySelectorAll('.paper');
+                    
+                    for (let i = 0; i < papers.length; i++) {
+                        if (i > 0) {
+                            pdf.addPage();
+                        }
+                        
+                        const canvas = await html2canvas(papers[i], {
+                            scale: 2,
+                            useCORS: true,
+                            logging: false
+                        });
+                        
+                        const imgData = canvas.toDataURL('image/png');
+                        const imgWidth = pdf.internal.pageSize.getWidth();
+                        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                        
+                        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+                    }
+
+                    const filename = document.getElementById('documentTitle').textContent + '.pdf';
+                    pdf.save(filename);
+                    
+                    alert('สร้าง PDF สำเร็จ!');
+                } catch (error) {
+                    console.error('Error creating PDF:', error);
+                    alert('เกิดข้อผิดพลาดในการสร้าง PDF: ' + error.message);
+                }
+            },
+
+            
+            async exportJSON() {
+                if (!this.db) {
+                    alert('ฐานข้อมูลยังไม่พร้อม');
+                    return;
+                }
+
+                const readAll = (storeName) => {
+                    return new Promise((resolve) => {
+                        const tx = this.db.transaction([storeName], 'readonly');
+                        const store = tx.objectStore(storeName);
+                        const req = store.getAll();
+                        req.onsuccess = () => resolve(req.result || []);
+                    });
+                };
+
+                const readSingle = (storeName, key) => {
+                    return new Promise((resolve) => {
+                        const tx = this.db.transaction([storeName], 'readonly');
+                        const store = tx.objectStore(storeName);
+                        const req = store.get(key);
+                        req.onsuccess = () => resolve(req.result || null);
+                    });
+                };
+
+                const exportData = {
+                    meta: {
+                        app: 'Novel Writer',
+                        version: '1.0',
+                        exportedAt: new Date().toISOString()
+                    },
+                    theme: localStorage.getItem('theme') || 'light',
+                    tree: (await readSingle('tree', 'root'))?.data || [],
+                    documents: await readAll('documents'),
+                    entities: await readAll('entities'),
+                    versions: await readAll('versions')
+                };
+
+                const blob = new Blob(
+                    [JSON.stringify(exportData, null, 2)],
+                    { type: 'application/json' }
+                );
+
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `novel-writer-backup-${Date.now()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            },
+            
+            showOneDriveModal() {
+                document.getElementById('oneDriveModal').classList.add('active');
+            },
+
+            async exportToOneDrive() {
+                // Export all data as JSON
+                const exportData = {
+                    version: '2.0',
+                    exportDate: new Date().toISOString(),
+                    tree: this.treeData,
+                    documents: [],
+                    entities: this.entities,
+                    versions: []
+                };
+
+                // Get all documents
+                const docTransaction = this.db.transaction(['documents'], 'readonly');
+                const docStore = docTransaction.objectStore('documents');
+                const docRequest = docStore.getAll();
+                
+                docRequest.onsuccess = async () => {
+                    exportData.documents = docRequest.result;
+                    
+                    // Get all versions
+                    const verTransaction = this.db.transaction(['versions'], 'readonly');
+                    const verStore = verTransaction.objectStore('versions');
+                    const verRequest = verStore.getAll();
+                    
+                    verRequest.onsuccess = () => {
+                        exportData.versions = verRequest.result;
+                        
+                        // Create and download JSON file
+                        const dataStr = JSON.stringify(exportData, null, 2);
+                        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                        const url = URL.createObjectURL(dataBlob);
+                        
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `NovelWriter_${new Date().toISOString().split('T')[0]}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        
+                        alert('Export สำเร็จ!\nกรุณานำไฟล์ที่ดาวน์โหลดไปเก็บใน OneDrive ของคุณ');
+                    };
+                };
+            },
+
+            async importFromFile() {
+                const file = document.getElementById('importFile').files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        
+                        if (!confirm('การ Import จะแทนที่ข้อมูลทั้งหมด\nต้องการดำเนินการต่อหรือไม่?')) {
+                            return;
+                        }
+                        
+                        // Clear existing data
+                        const transaction = this.db.transaction(['tree', 'documents', 'entities', 'versions'], 'readwrite');
+                        
+                        await transaction.objectStore('tree').clear();
+                        await transaction.objectStore('documents').clear();
+                        await transaction.objectStore('entities').clear();
+                        await transaction.objectStore('versions').clear();
+                        
+                        // Import tree
+                        if (data.tree) {
+                            await transaction.objectStore('tree').put({ id: 'root', data: data.tree });
+                        }
+                        
+                        // Import documents
+                        if (data.documents) {
+                            for (let doc of data.documents) {
+                                await transaction.objectStore('documents').put(doc);
+                            }
+                        }
+                        
+                        // Import entities
+                        if (data.entities) {
+                            for (let entity of data.entities) {
+                                await transaction.objectStore('entities').put(entity);
+                            }
+                        }
+                        
+                        // Import versions
+                        if (data.versions) {
+                            for (let version of data.versions) {
+                                await transaction.objectStore('versions').put(version);
+                            }
+                        }
+                        
+                        // Reload everything
+                        await this.loadTreeData();
+                        await this.loadEntities();
+                        this.renderTree();
+                        
+                        this.closeModal('oneDriveModal');
+                        alert('Import สำเร็จ!');
+                        
+                    } catch (error) {
+                        console.error('Import error:', error);
+                        alert('เกิดข้อผิดพลาดในการ Import: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            },
+
+            closeModal(modalId) {
+                document.getElementById(modalId).classList.remove('active');
+            },
+
+            getEntityTypeLabel(type) {
+                const labels = {
+                    character: 'ตัวละคร',
+                    location: 'สถานที่',
+                    item: 'สิ่งของ',
+                    other: 'อื่นๆ'
+                };
+                return labels[type] || type;
+            }
+        };
+
+        // Initialize app when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (!e.target.classList.contains('editor')) return;
+
+            // ========================
+            // TAB → เพิ่ม indent
+            // ========================
+            if (e.key === 'Tab' && !e.shiftKey) {
+                e.preventDefault();
+
+                // 🟦 indent นิยาย
+                document.execCommand('insertText', false, '\u3000\u3000');
+                return;
+            }
+
+            // ========================
+            // SHIFT + TAB → ลบ indent
+            // ========================
+            if (e.key === 'Tab' && e.shiftKey) {
+                e.preventDefault();
+
+                const selection = window.getSelection();
+                if (!selection.rangeCount) return;
+
+                const range = selection.getRangeAt(0);
+                const textNode = app.getActiveTextNode(range);
+                if (!textNode) return;
+
+                const text = textNode.textContent;
+                const offset = range.startOffset;
+
+                const lineStart = text.lastIndexOf('\n', offset - 1) + 1;
+
+                const INDENT = '\u3000\u3000';
+                const single = '\u3000';
+
+                let remove = 0;
+                if (text.startsWith(INDENT, lineStart)) remove = 2;
+                else if (text.startsWith(single, lineStart)) remove = 1;
+                else return;
+
+                // เลือกช่วง indent ก่อน cursor
+                const removeRange = document.createRange();
+                removeRange.setStart(textNode, lineStart);
+                removeRange.setEnd(textNode, lineStart + remove);
+
+                selection.removeAllRanges();
+                selection.addRange(removeRange);
+
+                // 🔥 delete ผ่าน browser command → undo ได้
+                document.execCommand('delete');
+            }
+        });
+
+        document.getElementById('sidebarOverlay')
+            .addEventListener('click', () => {
+                document.getElementById('sidebar').classList.remove('show');
+                document.getElementById('sidebarOverlay').classList.remove('show');
+            });
+
+    </script>
+</body>
+</html>
