@@ -120,6 +120,6 @@ Suggested workflow:
    docker compose build
    docker compose up -d
    http://localhost:3006
-2. Used via github at link: 
+2. Used via github at link: [novelwriter-app](https://matus1142.github.io/novelwriter-app/)
 
 
